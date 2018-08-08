@@ -1,0 +1,16 @@
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Build
+target
+
+# IDE
+.idea
+
+# Scala
+.scalafmt.conf
