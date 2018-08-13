@@ -12,8 +12,7 @@ import io.circe.parser.decode
 
 class OAuthRequestSpec extends Specification with ThrownExpectations {
   def is = s2"""
-  OAuthRequest should
-    encode token request correctly $encode
+  OAuthRequest should encode token request correctly $encode
 """
 
   def encode = {

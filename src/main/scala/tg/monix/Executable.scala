@@ -26,16 +26,17 @@ object Executable extends App {
     AcknowledgeBatchBufferConfig(1.second, 100)
   )
   val googleSubHttpClientConfig = GoogleSubHttpClientConfig(
-    Uri(Some(Scheme.http), Some(Authority(None, RegName("localhost"), Some(8080)))),
+    Uri(Some(Scheme.http), Some(Authority(None, RegName("localhost"), Some(8085)))),
     "p1",
-    "s1",
+    "s-1",
     1000,
     ClientConfig(
       "email",
       keyPair.getPrivate,
       3600.seconds
     ),
-    CircuitBreakerConfig(5, 10.seconds, 2, 10.minutes)
+    CircuitBreakerConfig(5, 10.seconds, 2, 10.minutes),
+    isSimulation = true
   )
 
   val httpClient: Client[IO] = Http1Client[IO]().unsafeRunSync()

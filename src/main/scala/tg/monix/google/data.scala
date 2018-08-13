@@ -5,6 +5,7 @@ import java.time.Instant
 import java.util.Base64
 
 import cats.effect.IO
+import io.circe.syntax._
 import io.circe._
 import io.circe.generic.semiauto._
 import org.http4s._
@@ -20,13 +21,22 @@ case class PubSubMessage(
     publishTime: Option[Instant] = None
 )
 
+object PubSubMessage {
+ implicit val decoder = deriveDecoder[PubSubMessage]
+}
+
 case class AckId(id: String) extends AnyVal
 case class ReceivedMessage(ackId: AckId, message: PubSubMessage)
-object ReceiveMessage {}
+object ReceiveMessage {
+  val decoder: Decoder[ReceivedMessage] = (c: HCursor) => for {
+    ackId <- c.downField("ackId").as[String]
+    message <- c.downField("message").as[PubSubMessage]
+  } yield ReceivedMessage(AckId(ackId), message)
+}
 
 case class AcknowledgeRequest(ackIds: Seq[AckId])
 object AcknowledgeRequest {
-  implicit val encoderAckId: Encoder[AckId]                         = deriveEncoder[AckId]
+  implicit val encoderAckId: Encoder[AckId]                         = Encoder.instance[AckId](_.id.asJson)
   implicit val encoder: Encoder[AcknowledgeRequest]                 = deriveEncoder[AcknowledgeRequest]
   implicit val entityEncoder: EntityEncoder[IO, AcknowledgeRequest] = jsonEncoderOf[IO, AcknowledgeRequest]
 }
@@ -45,7 +55,7 @@ case class PullResponse(receivedMessages: Option[Seq[ReceivedMessage]])
 object PullResponse {
   implicit val decoderAckId: Decoder[AckId]                     = deriveDecoder[AckId]
   implicit val decoderPubSubMessage: Decoder[PubSubMessage]     = deriveDecoder[PubSubMessage]
-  implicit val decoderReceivedMessage: Decoder[ReceivedMessage] = deriveDecoder[ReceivedMessage]
+  implicit val decoderReceivedMessage: Decoder[ReceivedMessage] = ReceiveMessage.decoder
   implicit val decoderPullResponse: Decoder[PullResponse]       = deriveDecoder[PullResponse]
   implicit val entityDecoder: EntityDecoder[IO, PullResponse]   = jsonOf[IO, PullResponse]
 }

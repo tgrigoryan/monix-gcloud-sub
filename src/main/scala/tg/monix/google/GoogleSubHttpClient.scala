@@ -14,7 +14,7 @@ import cats.implicits._
 import org.http4s.headers.Authorization
 import tg.monix.logging.Logger
 import tg.monix.implicits._
-import tg.monix.time.Time
+import tg.monix.time.{EpochSeconds, Time}
 
 trait GoogleSubClient {
   val token: Task[AccessToken]
@@ -42,7 +42,8 @@ case class GoogleSubHttpClientConfig(
     subscription: String,
     pullMaxMessages: Int,
     client: ClientConfig,
-    circuitBreaker: CircuitBreakerConfig
+    circuitBreaker: CircuitBreakerConfig,
+    isSimulation: Boolean
 )
 
 //TODO - F[_] could be used instead of IO
@@ -55,7 +56,10 @@ case class GoogleSubHttpClient(httpClient: Client[IO], time: Time, logger: Logge
   private val newToken: Task[AccessToken] = circuitBreaker >>= newTokenWithCircuitBreaker
 
   @SuppressWarnings(Array("org.wartremover.warts.Var"))
-  val token: Task[AccessToken] = {
+  val token: Task[AccessToken] = if (config.isSimulation) {
+    Task.now(AccessToken("SIMULATION_TOKEN", EpochSeconds(Long.MaxValue)))
+  }
+  else {
     var maybeToken: Option[AccessToken] = None
     //TODO - consider token failures as well
     for {
