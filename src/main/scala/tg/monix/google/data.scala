@@ -1,4 +1,4 @@
-package tg.monix
+package tg.monix.google
 
 import java.security.{PrivateKey, Signature}
 import java.time.Instant
@@ -10,6 +10,7 @@ import io.circe.generic.semiauto._
 import org.http4s._
 import org.http4s.circe._
 import io.circe.java8.time._
+import tg.monix.time.EpochSeconds
 
 case class PubSubMessage(data: String,
                                messageId: String,
@@ -51,17 +52,20 @@ case class OAuthRequest(iss: String, scope: String, aud: String, exp: Long, iat:
 
   private def base64(s: Array[Byte]) = new String(Base64.getUrlEncoder.encode(s))
 
-  def encode(privateKey: PrivateKey) = {
+  def encode(privateKey: PrivateKey): String = encode { str =>
+      val sign = Signature.getInstance("SHA256withRSA")
+      sign.initSign(privateKey)
+      sign.update(str.getBytes("UTF-8"))
 
+      base64(sign.sign())
+    }
+
+  def encode(sign: String => String): String = {
     val header = base64("""{"alg":"RS256","typ":"JWT"}""".getBytes("UTF-8"))
-    val request = base64(OAuthRequest.encoder(self).noSpaces.getBytes("UTF-8"))
-    val sign = Signature.getInstance("SHA256withRSA")
-    sign.initSign(privateKey)
-    sign.update(s"$header.$request".getBytes("UTF-8"))
+    val payload = base64(OAuthRequest.encoder(self).noSpaces.getBytes("UTF-8"))
 
-    val signature = base64(sign.sign())
-
-    s"$header.$request.$signature"
+    val unsignedRequest = s"$header.$payload"
+    s"$unsignedRequest.${sign(unsignedRequest)}"
   }
 }
 
@@ -81,11 +85,6 @@ object OAuthResponse {
   implicit val entityDecoder: EntityDecoder[IO, OAuthResponse] = jsonOf[IO, OAuthResponse]
 }
 
-//TODO - ensure positive seconds
-case class EpochSeconds(seconds: Long) extends AnyVal { self ⇒
-  def >=(point: EpochSeconds): Boolean = seconds >= point.seconds
-  def +(seconds: Long): EpochSeconds = EpochSeconds(self.seconds + seconds)
-}
 
 case class AccessToken(token: String, expiresAt: EpochSeconds)
 
