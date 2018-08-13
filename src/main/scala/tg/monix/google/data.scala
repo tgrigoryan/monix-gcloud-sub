@@ -22,16 +22,17 @@ case class PubSubMessage(
 )
 
 object PubSubMessage {
- implicit val decoder = deriveDecoder[PubSubMessage]
+  implicit val decoder = deriveDecoder[PubSubMessage]
 }
 
 case class AckId(id: String) extends AnyVal
 case class ReceivedMessage(ackId: AckId, message: PubSubMessage)
 object ReceiveMessage {
-  val decoder: Decoder[ReceivedMessage] = (c: HCursor) => for {
-    ackId <- c.downField("ackId").as[String]
-    message <- c.downField("message").as[PubSubMessage]
-  } yield ReceivedMessage(AckId(ackId), message)
+  val decoder: Decoder[ReceivedMessage] = (c: HCursor) =>
+    for {
+      ackId   <- c.downField("ackId").as[String]
+      message <- c.downField("message").as[PubSubMessage]
+    } yield ReceivedMessage(AckId(ackId), message)
 }
 
 case class AcknowledgeRequest(ackIds: Seq[AckId])

@@ -58,8 +58,7 @@ case class GoogleSubHttpClient(httpClient: Client[IO], time: Time, logger: Logge
   @SuppressWarnings(Array("org.wartremover.warts.Var"))
   val token: Task[AccessToken] = if (config.isSimulation) {
     Task.now(AccessToken("SIMULATION_TOKEN", EpochSeconds(Long.MaxValue)))
-  }
-  else {
+  } else {
     var maybeToken: Option[AccessToken] = None
     //TODO - consider token failures as well
     for {
