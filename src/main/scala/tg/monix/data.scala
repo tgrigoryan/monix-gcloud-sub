@@ -1,0 +1,91 @@
+package tg.monix
+
+import java.security.{PrivateKey, Signature}
+import java.time.Instant
+import java.util.Base64
+
+import cats.effect.IO
+import io.circe._
+import io.circe.generic.semiauto._
+import org.http4s._
+import org.http4s.circe._
+import io.circe.java8.time._
+
+case class PubSubMessage(data: String,
+                               messageId: String,
+                               attributes: Option[Map[String, String]] = None,
+                               publishTime: Option[Instant] = None)
+
+case class AckId(id: String) extends AnyVal
+case class ReceivedMessage(ackId: AckId, message: PubSubMessage)
+object ReceiveMessage {
+}
+
+case class AcknowledgeRequest(ackIds: Seq[AckId])
+object AcknowledgeRequest {
+  implicit val encoderAckId: Encoder[AckId] = deriveEncoder[AckId]
+  implicit val encoder: Encoder[AcknowledgeRequest] = deriveEncoder[AcknowledgeRequest]
+  implicit val entityEncoder: EntityEncoder[IO, AcknowledgeRequest] = jsonEncoderOf[IO, AcknowledgeRequest]
+}
+
+sealed trait AcknowledgeResponse
+case object Ack extends AcknowledgeResponse
+case class Decline(body: String) extends AcknowledgeResponse
+
+case class PullRequest(returnImmediately: Boolean, maxMessages: Int)
+object PullRequest {
+  implicit val encoder: Encoder[PullRequest] = deriveEncoder[PullRequest]
+  implicit val entityEncoder: EntityEncoder[IO, PullRequest] = jsonEncoderOf[IO, PullRequest]
+}
+
+case class PullResponse(receivedMessages: Option[Seq[ReceivedMessage]])
+object PullResponse {
+  implicit val decoderAckId: Decoder[AckId] = deriveDecoder[AckId]
+  implicit val decoderPubSubMessage: Decoder[PubSubMessage] = deriveDecoder[PubSubMessage]
+  implicit val decoderReceivedMessage: Decoder[ReceivedMessage] = deriveDecoder[ReceivedMessage]
+  implicit val decoderPullResponse: Decoder[PullResponse] = deriveDecoder[PullResponse]
+  implicit val entityDecoder: EntityDecoder[IO, PullResponse] = jsonOf[IO, PullResponse]
+}
+
+case class OAuthRequest(iss: String, scope: String, aud: String, exp: Long, iat: Long) { self ⇒
+
+  private def base64(s: Array[Byte]) = new String(Base64.getUrlEncoder.encode(s))
+
+  def encode(privateKey: PrivateKey) = {
+
+    val header = base64("""{"alg":"RS256","typ":"JWT"}""".getBytes("UTF-8"))
+    val request = base64(OAuthRequest.encoder(self).noSpaces.getBytes("UTF-8"))
+    val sign = Signature.getInstance("SHA256withRSA")
+    sign.initSign(privateKey)
+    sign.update(s"$header.$request".getBytes("UTF-8"))
+
+    val signature = base64(sign.sign())
+
+    s"$header.$request.$signature"
+  }
+}
+
+object OAuthRequest {
+  def from(clientEmail: String, now: EpochSeconds, expiresAt: EpochSeconds): OAuthRequest = OAuthRequest(
+    clientEmail,
+    "https://www.googleapis.com/auth/pubsub",
+    "https://www.googleapis.com/oauth2/v4/token",
+    expiresAt.seconds,
+    now.seconds
+  )
+  private val encoder: Encoder[OAuthRequest] = deriveEncoder[OAuthRequest]
+}
+case class OAuthResponse(access_token: String, token_type: String, expires_in: Option[Int])
+object OAuthResponse {
+  implicit val decoder: Decoder[OAuthResponse] = deriveDecoder[OAuthResponse]
+  implicit val entityDecoder: EntityDecoder[IO, OAuthResponse] = jsonOf[IO, OAuthResponse]
+}
+
+//TODO - ensure positive seconds
+case class EpochSeconds(seconds: Long) extends AnyVal { self ⇒
+  def >=(point: EpochSeconds): Boolean = seconds >= point.seconds
+  def +(seconds: Long): EpochSeconds = EpochSeconds(self.seconds + seconds)
+}
+
+case class AccessToken(token: String, expiresAt: EpochSeconds)
+

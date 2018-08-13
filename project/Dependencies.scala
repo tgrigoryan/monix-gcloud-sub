@@ -12,14 +12,18 @@ object Dependencies {
   lazy val http4sVersion = "0.18.15"
   lazy val http4s = Seq(
     "org.http4s"      %% "http4s-blaze-server",
+    "org.http4s"      %% "http4s-dsl",
+    "org.http4s"      %% "http4s-blaze-client",
     "org.http4s"      %% "http4s-circe"
   ).map(_ % http4sVersion)
 
   lazy val circeVersion = "0.9.3"
   lazy val circe = Seq(
     "io.circe" %% "circe-core",
+    "io.circe" %% "circe-java8",
     "io.circe" %% "circe-generic",
-    "io.circe" %% "circe-parser"
+    "io.circe" %% "circe-parser",
+    "io.circe" %% "circe-literal"
   ).map(_ % circeVersion)
 
   lazy val specs2Version = "4.1.0"
