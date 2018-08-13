@@ -18,6 +18,7 @@ import tg.monix.time.Time
 
 //TODO - looks like unlimited restarting in case CB is not a good idea
 //TODO - metrics (number of messages) maybe using pipes ?
+@SuppressWarnings(Array("org.wartremover.warts.While"))
 object Executable extends App {
 
   val googleSubConfig = GoogleSubConfig(
@@ -38,15 +39,15 @@ object Executable extends App {
   )
 
   val httpClient: Client[IO] = Http1Client[IO]().unsafeRunSync()
-  val googleSubClient = GoogleSubHttpClient(httpClient, Time, Logger.console, googleSubHttpClientConfig)
-  val googleSub = GoogleSub(googleSubClient, Logger.console, googleSubConfig)
+  val googleSubClient        = GoogleSubHttpClient(httpClient, Time, Logger.console, googleSubHttpClientConfig)
+  val googleSub              = GoogleSub(googleSubClient, Logger.console, googleSubConfig)
 
   val source = googleSub.messages
   val stream = googleSub.messages >>= handle >>= googleSub.acknowledgeBatch
 
   val cf = stream.consumeWith(googleSub.acknowledge).runAsync
 
-  while(!cf.isCompleted) {}
+  while (!cf.isCompleted) {}
 
   def handle(message: ReceivedMessage): Observable[Seq[AckId]] =
     Observable(message).map(_.ackId).bufferTimedAndCounted(10.second, 10)
@@ -54,4 +55,3 @@ object Executable extends App {
   def keyPair() =
     KeyPairGenerator.getInstance("RSA").generateKeyPair()
 }
-

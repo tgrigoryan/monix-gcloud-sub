@@ -13,5 +13,5 @@ object Time extends Time
 //TODO - ensure positive seconds
 case class EpochSeconds(seconds: Long) extends AnyVal { self ⇒
   def >=(point: EpochSeconds): Boolean = seconds >= point.seconds
-  def +(seconds: Long): EpochSeconds = EpochSeconds(self.seconds + seconds)
+  def +(seconds: Long): EpochSeconds   = EpochSeconds(self.seconds + seconds)
 }
