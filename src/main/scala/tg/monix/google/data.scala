@@ -11,6 +11,7 @@ import org.http4s._
 import org.http4s.circe._
 import io.circe.java8.time._
 import tg.monix.time.EpochSeconds
+import cats.implicits._
 
 case class PubSubMessage(
     data: String,
@@ -51,26 +52,25 @@ object PullResponse {
 
 case class OAuthRequest(iss: String, scope: String, aud: String, exp: Long, iat: Long) { self ⇒
 
-  private def base64(s: Array[Byte]) = new String(Base64.getUrlEncoder.encode(s))
+  val header  = base64(OAuthRequest.rawHeader.getBytes("UTF-8"))
+  val payload = base64(OAuthRequest.encoder(self).noSpaces.getBytes("UTF-8"))
+  val request = header |+| "." |+| payload
 
-  def encode(privateKey: PrivateKey): String = encode { str =>
-    val sign = Signature.getInstance("SHA256withRSA")
-    sign.initSign(privateKey)
-    sign.update(str.getBytes("UTF-8"))
+  def signedRequest(privateKey: PrivateKey): String = {
+    val signature = Signature.getInstance("SHA256withRSA")
+    signature.initSign(privateKey)
+    signature.update(request.getBytes("UTF-8"))
 
-    base64(sign.sign())
+    request |+| "." |+| base64(signature.sign())
   }
 
-  def encode(sign: String => String): String = {
-    val header  = base64("""{"alg":"RS256","typ":"JWT"}""".getBytes("UTF-8"))
-    val payload = base64(OAuthRequest.encoder(self).noSpaces.getBytes("UTF-8"))
-
-    val unsignedRequest = s"$header.$payload"
-    s"$unsignedRequest.${sign(unsignedRequest)}"
-  }
+  private def base64(s: Array[Byte]) = Base64.getUrlEncoder.encodeToString(s)
 }
 
 object OAuthRequest {
+
+  val rawHeader = """{"alg":"RS256","typ":"JWT"}"""
+
   def from(clientEmail: String, now: EpochSeconds, expiresAt: EpochSeconds): OAuthRequest = OAuthRequest(
     clientEmail,
     "https://www.googleapis.com/auth/pubsub",

@@ -42,7 +42,6 @@ object Executable extends App {
   val googleSubClient        = GoogleSubHttpClient(httpClient, Time, Logger.console, googleSubHttpClientConfig)
   val googleSub              = GoogleSub(googleSubClient, Logger.console, googleSubConfig)
 
-  val source = googleSub.messages
   val stream = googleSub.messages >>= handle >>= googleSub.acknowledgeBatch
 
   val cf = stream.consumeWith(googleSub.acknowledge).runAsync

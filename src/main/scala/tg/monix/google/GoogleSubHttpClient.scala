@@ -96,7 +96,7 @@ case class GoogleSubHttpClient(httpClient: Client[IO], time: Time, logger: Logge
   }
 
   private def tokenRequest(request: OAuthRequest): IO[Request[IO]] =
-    IO(request.encode(config.client.privateKey)).flatMap { encodedRequest ⇒
+    IO(request.signedRequest(config.client.privateKey)).flatMap { encodedRequest ⇒
       Method.POST(
         config.uri.withPath("/oauth2/v4/token"),
         UrlForm(
